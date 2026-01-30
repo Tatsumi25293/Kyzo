@@ -1,4 +1,4 @@
-name: RDP-Final-Emergency
+name: RDP-Serveo-TCP
 
 on:
   workflow_dispatch:
@@ -22,23 +22,22 @@ jobs:
           New-LocalUser -Name "RDPUser" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start Tunnel (Serveo)
+      - name: Start TCP Tunnel
         run: |
-          Write-Host "Connecting to Serveo..."
-          # فتح نفق RDP باستخدام SSH العادي الموجود في ويندوز
-          # سيقوم هذا الأمر بفتح نفق من بورت 3389 إلى سيرفرات serveo
-          Start-Process ssh -ArgumentList "-o StrictHostKeyChecking=no -R 80:localhost:3389 serveo.net" -NoNewWindow
+          Write-Host "Connecting to Serveo TCP..."
+          # هنا قمنا بتغيير المنفذ ليكون TCP مباشر على بورت عشوائي من سيرفر Serveo
+          Start-Process ssh -ArgumentList "-o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net" -NoNewWindow
           
-          Write-Host "=========================================="
-          Write-Host "Address: serveo.net"
-          Write-Host "Wait 30 seconds, then try connecting to serveo.net in your RDP app"
-          Write-Host "User: RDPUser"
-          Write-Host "Pass: User@123456"
-          Write-Host "=========================================="
+          Write-Host "Waiting 30 seconds to get the TCP address..."
+          Start-Sleep -Seconds 30
 
-      - name: Keep Alive Loop
+      - name: Keep Alive & Show Address
         run: |
-          while ($true) {
-            Write-Host "RDP Active... $(Get-Date)"
-            Start-Sleep -Seconds 300
-          }
+          Write-Host "=========================================="
+          Write-Host "Look at the logs of 'Start TCP Tunnel' step"
+          Write-Host "You should see something like: Forwarding TCP from serveo.net:XXXXX"
+          Write-Host "Username: RDPUser"
+          Write-Host "Password: User@123456"
+          Write-Host "=========================================="
+          while ($true) { Start-Sleep -Seconds 300 }
+          
