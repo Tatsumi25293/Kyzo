@@ -1,4 +1,4 @@
-name: RDP-Ngrok-Final-v3
+name: RDP-Easy-NoToken
 
 on:
   workflow_dispatch:
@@ -15,58 +15,32 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 -Force
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-      - name: Create RDP User
+      - name: Create User
         run: |
           $password = "User@123456"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name "RDPUser" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Install and Start Ngrok
+      - name: Start RDP Tunnel
         run: |
-          # تثبيت Ngrok
-          choco install ngrok -y
+          # تحميل أداة بسيطة لفتح النفق
+          Invoke-WebRequest https://github.com/cloudflared/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -OutFile cloudflared.exe
           
-          # إعداد التوكين
-          ngrok config add-authtoken "38MQOwyYJkFv3uiL2OE1SjraYWJ_6QJiy2xt3fuAUskSzvrTo"
+          # تشغيل النفق (بدون حساب وبدون توكين)
+          Start-Process ./cloudflared.exe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow
           
-          # تشغيل Ngrok في الخلفية كخدمة لضمان استمراره
-          Start-Process ngrok -ArgumentList "tcp 3389" -WindowStyle Hidden
+          Write-Host "Waiting for Link..."
+          Start-Sleep -Seconds 20
           
-          # انتظار 30 ثانية للتأكد من أن النفق فتح تماماً
-          Write-Host "Waiting for Ngrok to establish connection..."
-          Start-Sleep -Seconds 30
-          
-          # محاولة جلب الرابط (مع تكرار المحاولة إذا فشل)
-          $attempts = 0
-          $ngrokUrl = $null
-          while ($null -eq $ngrokUrl -and $attempts -lt 5) {
-              try {
-                  $response = Invoke-RestMethod http://localhost:4040/api/tunnels
-                  $ngrokUrl = $response.tunnels[0].public_url
-              } catch {
-                  Write-Host "Retrying to fetch URL... ($($attempts + 1)/5)"
-                  Start-Sleep -Seconds 10
-                  $attempts++
-              }
-          }
+          Write-Host "=========================================="
+          Write-Host "Check the logs above for a link like: tcp://...:..."
+          Write-Host "Username: RDPUser"
+          Write-Host "Password: User@123456"
+          Write-Host "=========================================="
 
-          if ($null -ne $ngrokUrl) {
-              $cleanUrl = $ngrokUrl.Replace("tcp://", "")
-              Write-Host "`n=========================================="
-              Write-Host "Address: $cleanUrl"
-              Write-Host "Username: RDPUser"
-              Write-Host "Password: User@123456"
-              Write-Host "==========================================`n"
-          } else {
-              Write-Error "Failed to get Ngrok URL. Check if token is valid."
-              exit 1
-          }
-
-      - name: Keep Runner Alive
+      - name: Wait Loop
         run: |
           while ($true) {
-              Write-Host "RDP is Active... $(Get-Date)"
-              Start-Sleep -Seconds 300
+            Start-Sleep -Seconds 360
           }
-          
