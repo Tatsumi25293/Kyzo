@@ -1,4 +1,4 @@
-name: RDP-Ngrok-Fixed
+name: RDP-Ngrok-Final-v3
 
 on:
   workflow_dispatch:
@@ -24,31 +24,49 @@ jobs:
 
       - name: Install and Start Ngrok
         run: |
-          # استخدام Chocolatey لتحميل Ngrok بشكل مضمون ومستقر
+          # تثبيت Ngrok
           choco install ngrok -y
           
-          # إعداد التوكين الخاص بك
+          # إعداد التوكين
           ngrok config add-authtoken "38MQOwyYJkFv3uiL2OE1SjraYWJ_6QJiy2xt3fuAUskSzvrTo"
           
-          # تشغيل النفق
-          Start-Process ngrok -ArgumentList "tcp 3389"
+          # تشغيل Ngrok في الخلفية كخدمة لضمان استمراره
+          Start-Process ngrok -ArgumentList "tcp 3389" -WindowStyle Hidden
           
-          # الانتظار لجلب الرابط
-          Start-Sleep -Seconds 20
+          # انتظار 30 ثانية للتأكد من أن النفق فتح تماماً
+          Write-Host "Waiting for Ngrok to establish connection..."
+          Start-Sleep -Seconds 30
           
-          $ngrokUrl = (Invoke-RestMethod http://localhost:4040/api/tunnels).tunnels[0].public_url
-          $cleanUrl = $ngrokUrl.Replace("tcp://", "")
-          
-          Write-Host "`n=========================================="
-          Write-Host "Address: $cleanUrl"
-          Write-Host "Username: RDPUser"
-          Write-Host "Password: User@123456"
-          Write-Host "==========================================`n"
+          # محاولة جلب الرابط (مع تكرار المحاولة إذا فشل)
+          $attempts = 0
+          $ngrokUrl = $null
+          while ($null -eq $ngrokUrl -and $attempts -lt 5) {
+              try {
+                  $response = Invoke-RestMethod http://localhost:4040/api/tunnels
+                  $ngrokUrl = $response.tunnels[0].public_url
+              } catch {
+                  Write-Host "Retrying to fetch URL... ($($attempts + 1)/5)"
+                  Start-Sleep -Seconds 10
+                  $attempts++
+              }
+          }
+
+          if ($null -ne $ngrokUrl) {
+              $cleanUrl = $ngrokUrl.Replace("tcp://", "")
+              Write-Host "`n=========================================="
+              Write-Host "Address: $cleanUrl"
+              Write-Host "Username: RDPUser"
+              Write-Host "Password: User@123456"
+              Write-Host "==========================================`n"
+          } else {
+              Write-Error "Failed to get Ngrok URL. Check if token is valid."
+              exit 1
+          }
 
       - name: Keep Runner Alive
         run: |
           while ($true) {
-              Write-Host "Status: Connection Active - $(Get-Date)"
+              Write-Host "RDP is Active... $(Get-Date)"
               Start-Sleep -Seconds 300
           }
           
