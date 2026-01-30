@@ -1,4 +1,4 @@
-name: RDP-Easy-NoToken
+name: RDP-Final-Emergency
 
 on:
   workflow_dispatch:
@@ -22,25 +22,23 @@ jobs:
           New-LocalUser -Name "RDPUser" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
 
-      - name: Start RDP Tunnel
+      - name: Start Tunnel (Serveo)
         run: |
-          # تحميل أداة بسيطة لفتح النفق
-          Invoke-WebRequest https://github.com/cloudflared/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -OutFile cloudflared.exe
-          
-          # تشغيل النفق (بدون حساب وبدون توكين)
-          Start-Process ./cloudflared.exe -ArgumentList "tunnel --url tcp://localhost:3389" -NoNewWindow
-          
-          Write-Host "Waiting for Link..."
-          Start-Sleep -Seconds 20
+          Write-Host "Connecting to Serveo..."
+          # فتح نفق RDP باستخدام SSH العادي الموجود في ويندوز
+          # سيقوم هذا الأمر بفتح نفق من بورت 3389 إلى سيرفرات serveo
+          Start-Process ssh -ArgumentList "-o StrictHostKeyChecking=no -R 80:localhost:3389 serveo.net" -NoNewWindow
           
           Write-Host "=========================================="
-          Write-Host "Check the logs above for a link like: tcp://...:..."
-          Write-Host "Username: RDPUser"
-          Write-Host "Password: User@123456"
+          Write-Host "Address: serveo.net"
+          Write-Host "Wait 30 seconds, then try connecting to serveo.net in your RDP app"
+          Write-Host "User: RDPUser"
+          Write-Host "Pass: User@123456"
           Write-Host "=========================================="
 
-      - name: Wait Loop
+      - name: Keep Alive Loop
         run: |
           while ($true) {
-            Start-Sleep -Seconds 360
+            Write-Host "RDP Active... $(Get-Date)"
+            Start-Sleep -Seconds 300
           }
