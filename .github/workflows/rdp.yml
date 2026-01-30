@@ -1,4 +1,4 @@
-name: RDP-Ngrok-Ready
+name: RDP-Ngrok-Fixed
 
 on:
   workflow_dispatch:
@@ -11,7 +11,6 @@ jobs:
     steps:
       - name: Configure RDP Settings
         run: |
-          # تفعيل الاتصال عن بعد وتخطي جدار الحماية
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 -Force
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
@@ -22,25 +21,22 @@ jobs:
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name "RDPUser" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDPUser"
-          Write-Host "User created successfully."
 
       - name: Install and Start Ngrok
         run: |
-          # تحميل أداة Ngrok
-          Invoke-WebRequest https://bin.equinox.io/c/bPR9B2h3Y6e/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip
+          # استخدام Chocolatey لتحميل Ngrok بشكل مضمون ومستقر
+          choco install ngrok -y
           
           # إعداد التوكين الخاص بك
-          ./ngrok/ngrok.exe config add-authtoken "38MQOwyYJkFv3uiL2OE1SjraYWJ_6QJiy2xt3fuAUskSzvrTo"
+          ngrok config add-authtoken "38MQOwyYJkFv3uiL2OE1SjraYWJ_6QJiy2xt3fuAUskSzvrTo"
           
-          # تشغيل النفق لفتح منفذ RDP
-          Start-Process ./ngrok/ngrok.exe -ArgumentList "tcp 3389"
+          # تشغيل النفق
+          Start-Process ngrok -ArgumentList "tcp 3389"
           
-          # الانتظار قليلاً لجلب عنوان الاتصال
-          Start-Sleep -Seconds 15
+          # الانتظار لجلب الرابط
+          Start-Sleep -Seconds 20
           
           $ngrokUrl = (Invoke-RestMethod http://localhost:4040/api/tunnels).tunnels[0].public_url
-          # تنظيف الرابط ليصبح جاهزاً للاستخدام (إزالة tcp://)
           $cleanUrl = $ngrokUrl.Replace("tcp://", "")
           
           Write-Host "`n=========================================="
@@ -51,7 +47,6 @@ jobs:
 
       - name: Keep Runner Alive
         run: |
-          # إبقاء السيرفر يعمل حتى 6 ساعات
           while ($true) {
               Write-Host "Status: Connection Active - $(Get-Date)"
               Start-Sleep -Seconds 300
